@@ -1,7 +1,11 @@
 const { MongoClient } = require('mongodb')
+const { MONGODB_URI } = require('./constants')
 
-const uri = 'mongodb://localhost:27017'
-const client = new MongoClient(uri, { useUnifiedTopology: true })
+const uri = MONGODB_URI
+const client = new MongoClient(uri, {
+  useUnifiedTopology: true,
+  useNewUrlParser: true,
+})
 let database = null
 
 async function connect() {
