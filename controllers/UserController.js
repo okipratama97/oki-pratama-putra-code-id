@@ -1,4 +1,6 @@
 const User = require('../models/User')
+const Redis = require('ioredis')
+const redis = new Redis()
 
 class UserController {
   static async createUser(req, res, next) {
@@ -16,6 +18,16 @@ class UserController {
         identityNumber,
       })
 
+      await redis.set(
+        `users:accountNumber:${user.ops[0].accountNumber}`,
+        JSON.stringify(user.ops[0])
+      )
+
+      await redis.set(
+        `users:identityNumber:${user.ops[0].identityNumber}`,
+        JSON.stringify(user.ops[0])
+      )
+
       res.status(201).json({ user: user.ops[0] })
     } catch (err) {
       next(err)
@@ -24,9 +36,20 @@ class UserController {
 
   static async findUserByAccountNumber(req, res, next) {
     try {
-      const user = await User.findUserByAccountNumber(req.params.accountNumber)
+      let user = await redis.get(
+        `users:accountNumber:${req.params.accountNumber}`
+      )
+      if (!user) {
+        user = await User.findUserByAccountNumber(req.params.accountNumber)
+        if (!user) throw { name: 'error_404_user_not_found' }
 
-      if (!user) throw { name: 'error_404_user_not_found' }
+        await redis.set(
+          `users:accountNumber:${req.params.accountNumber}`,
+          JSON.stringify(user)
+        )
+      } else {
+        user = JSON.parse(user)
+      }
 
       res.status(200).json(user)
     } catch (err) {
@@ -36,11 +59,21 @@ class UserController {
 
   static async findUserByIdentityNumber(req, res, next) {
     try {
-      const user = await User.findUserByIdentityNumber(
-        req.params.identityNumber
+      let user = await redis.get(
+        `users:identityNumber:${req.params.identityNumber}`
       )
 
-      if (!user) throw { name: 'error_404_user_not_found' }
+      if (!user) {
+        user = await User.findUserByIdentityNumber(req.params.identityNumber)
+        if (!user) throw { name: 'error_404_user_not_found' }
+
+        await redis.set(
+          `users:identityNumber:${req.params.identityNumber}`,
+          JSON.stringify(user)
+        )
+      } else {
+        user = JSON.parse(user)
+      }
 
       res.status(200).json(user)
     } catch (err) {
@@ -74,6 +107,7 @@ class UserController {
         _id,
       })
 
+      await redis.flushdb()
       res.status(200).json({ user: response.value })
     } catch (err) {
       next(err)
@@ -87,6 +121,7 @@ class UserController {
       const { deletedCount: response } = await User.deleteUserById(_id)
       if (!response) throw { name: 'error_404_user_not_found' }
 
+      await redis.flushdb()
       res.status(200).json({ message: 'User successfully deleted' })
     } catch (err) {
       next(err)
