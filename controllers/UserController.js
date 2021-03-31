@@ -1,6 +1,8 @@
 const User = require('../models/User')
 const Redis = require('ioredis')
-const redis = new Redis()
+const { REDIS_URL } = require('../config/constants')
+
+const redis = new Redis(REDIS_URL)
 
 class UserController {
   static async createUser(req, res, next) {
